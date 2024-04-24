@@ -1,8 +1,11 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
+import { JwtService } from '@nestjs/jwt';
+
 import { PrismaClient } from '@prisma/client';
 import { bcryptAdapter, Services } from 'src/config';
 import { LoginUserDto, RegisterUserDto } from './dto';
+import { JwtPayload } from './interfaces';
 
 @Injectable()
 export class AuthService extends PrismaClient implements OnModuleInit {
@@ -15,6 +18,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
 
   constructor(
     @Inject(Services.NATS_SERVICE) private readonly client: ClientProxy,
+    private readonly jwtService: JwtService,
   ) {
     super();
   }
@@ -36,7 +40,7 @@ export class AuthService extends PrismaClient implements OnModuleInit {
       });
 
       const { password: _, ...rest } = user;
-      return { user: rest, token: 'token' };
+      return { user: rest, token: await this.singJwt(rest) };
     } catch (error) {
       throw new RpcException({
         status: 400,
@@ -71,12 +75,16 @@ export class AuthService extends PrismaClient implements OnModuleInit {
       }
 
       const { password: _, ...rest } = user;
-      return { user: rest, token: 'token' };
+      return { user: rest, token: await this.singJwt(rest) };
     } catch (error) {
       throw new RpcException({
         status: 400,
         message: error.message,
       });
     }
+  }
+
+  private async singJwt(payload: JwtPayload) {
+    return this.jwtService.sign(payload);
   }
 }

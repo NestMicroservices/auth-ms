@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ClientProxy, RpcException } from '@nestjs/microservices';
 import { PrismaClient } from '@prisma/client';
-import { Services } from 'src/config';
+import { bcryptAdapter, Services } from 'src/config';
 import { RegisterUserDto } from './dto';
 
 @Injectable()
@@ -31,8 +31,12 @@ export class AuthService extends PrismaClient implements OnModuleInit {
         });
       }
 
-      const user = await this.user.create({ data: { email, name, password } });
-      return { user, token: 'token' };
+      const user = await this.user.create({
+        data: { email, name, password: await bcryptAdapter.hash(password) },
+      });
+      const { password: _, ...rest } = user;
+
+      return { user: rest, token: 'token' };
     } catch (error) {
       throw new RpcException({
         status: 400,
